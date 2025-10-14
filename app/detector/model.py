@@ -9,41 +9,36 @@ import os
 # Defect Detector (YOLO / FasterRCNN) - your existing code
 # -------------------------
 class DefectDetector:
-    def __init__(self, model_type: str = "yolo", model_path: str = "best.pt", confidence_threshold: float = 0.5):
+    def __init__(self, model_type: str = "fasterrcnn", model_path: str = "fasterrcnn_model.pth", confidence_threshold: float = 0.5):
         self.model_type = model_type.lower()
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold
         self._model = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
+        # Define classes based on your working code
+        # Your old code: CLASSES = ['crack', 'dent', 'scratch'] with labels 1-3
+        # So: 1=crack, 2=dent, 3=scratch (0 is background in FasterRCNN)
         self.defect_classes = {
-            0: "Dent",
-            1: "Scratch"
+            0: "Background",  # FasterRCNN background class
+            1: "Scratch",     # crack -> map to Scratch (linear defect)
+            2: "Dent",        # dent -> Dent (exact match)
+            3: "Scratch"      # scratch -> Scratch (exact match)
         }
         self._load_model()
     
     def _load_model(self):
         try:
-            if self.model_type == "yolo":
-                self._load_yolo_model()
-            elif self.model_type == "fasterrcnn":
+            if self.model_type == "fasterrcnn":
                 self._load_fasterrcnn_model()
             else:
-                print(f"[DefectDetector] Unsupported model type: {self.model_type}. Using dummy detector.")
-                self._model = None
+                print(f"[DefectDetector] Unsupported model type: {self.model_type}. Using FasterRCNN as fallback.")
+                self.model_type = "fasterrcnn"
+                self._load_fasterrcnn_model()
         except Exception as e:
             print(f"[DefectDetector] Failed to load {self.model_type} model ({e}). Using dummy detector.")
             self._model = None
     
-    def _load_yolo_model(self):
-        try:
-            from ultralytics import YOLO
-            print(f"[DefectDetector] Loading YOLO model: {self.model_path}")
-            self._model = YOLO(self.model_path)
-            print(f"[DefectDetector] YOLO model loaded successfully on {self.device}")
-        except ImportError:
-            print("[DefectDetector] ultralytics not installed. Install with: pip install ultralytics")
-            raise
     
     def _load_fasterrcnn_model(self):
         try:
@@ -53,12 +48,34 @@ class DefectDetector:
             print(f"[DefectDetector] Loading FasterRCNN model: {self.model_path}")
             
             if os.path.exists(self.model_path):
-                self._model = models.detection.fasterrcnn_resnet50_fpn(weights=None, num_classes=len(self.defect_classes) + 1)
-                checkpoint = torch.load(self.model_path, map_location=self.device)
-                self._model.load_state_dict(checkpoint)
+                # Load custom trained model - try to determine class count from checkpoint
+                try:
+                    checkpoint = torch.load(self.model_path, map_location=self.device)
+                    
+                    # Check the actual number of classes in the saved model
+                    if 'roi_heads.box_predictor.cls_score.weight' in checkpoint:
+                        saved_num_classes = checkpoint['roi_heads.box_predictor.cls_score.weight'].shape[0]
+                        print(f"[DefectDetector] Detected {saved_num_classes} classes in saved model")
+                        
+                        # Create model with the correct number of classes
+                        self._model = models.detection.fasterrcnn_resnet50_fpn(weights=None, num_classes=saved_num_classes)
+                        self._model.load_state_dict(checkpoint)
+                        print(f"[DefectDetector] Custom FasterRCNN model loaded successfully with {saved_num_classes} classes")
+                    else:
+                        # Fallback: try with our default class count
+                        self._model = models.detection.fasterrcnn_resnet50_fpn(weights=None, num_classes=len(self.defect_classes))
+                        self._model.load_state_dict(checkpoint)
+                        print("[DefectDetector] Custom FasterRCNN model loaded successfully")
+                        
+                except Exception as load_error:
+                    print(f"[DefectDetector] Failed to load custom model: {load_error}")
+                    print("[DefectDetector] Falling back to pretrained model")
+                    self._model = models.detection.fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT)
             else:
-                print("[DefectDetector] Model file not found, using pretrained FasterRCNN")
+                print("[DefectDetector] Custom model file not found, using pretrained FasterRCNN")
+                # Use pretrained model and adapt for our classes
                 self._model = models.detection.fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT)
+                # Note: Pretrained model has 91 classes, we'll filter to our classes in detection
             
             self._model.to(self.device)
             self._model.eval()
@@ -72,9 +89,7 @@ class DefectDetector:
             return self._dummy_detection(image_path)
         
         try:
-            if self.model_type == "yolo":
-                return self._detect_yolo(image_path)
-            elif self.model_type == "fasterrcnn":
+            if self.model_type == "fasterrcnn":
                 return self._detect_fasterrcnn(image_path)
             else:
                 return self._dummy_detection(image_path)
@@ -82,29 +97,23 @@ class DefectDetector:
             print(f"[DefectDetector] Detection failed ({e}). Using dummy fallback.")
             return self._dummy_detection(image_path)
     
-    def _detect_yolo(self, image_path: str) -> List[Dict]:
-        results = self._model(image_path, conf=self.confidence_threshold)
-        detections = []
-        
-        for result in results:
-            boxes = result.boxes
-            if boxes is not None:
-                for box in boxes:
-                    x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-                    confidence = float(box.conf[0].cpu().numpy())
-                    class_id = int(box.cls[0].cpu().numpy())
-                    
-                    class_name = self.defect_classes.get(class_id, f"defect_{class_id}")
-                    
-                    detections.append({
-                        "bbox": [int(x1), int(y1), int(x2), int(y2)],
-                        "score": confidence,
-                        "class": class_name,
-                        "class_id": class_id
-                    })
-        
-        return detections
     
+    def _get_smart_class_mapping(self, label_int: int) -> str:
+        """
+        Smart class mapping based on your working code
+        CLASSES = ['crack', 'dent', 'scratch'] with FasterRCNN labels 1-3
+        """
+        if label_int == 0:
+            return None        # Background - should be skipped
+        elif label_int == 1:
+            return "Scratch"   # crack -> Scratch (linear defect)
+        elif label_int == 2:
+            return "Dent"      # dent -> Dent (exact match)
+        elif label_int == 3:
+            return "Scratch"   # scratch -> Scratch (exact match)
+        else:
+            return "Dent"      # Default to Dent for any unknown class
+
     def _detect_fasterrcnn(self, image_path: str) -> List[Dict]:
         image = Image.open(image_path).convert("RGB")
         image_tensor = torch.tensor(np.array(image)).permute(2, 0, 1).float() / 255.0
@@ -123,14 +132,29 @@ class DefectDetector:
         
         for box, score, label in zip(boxes, scores, labels):
             x1, y1, x2, y2 = box
-            class_name = self.defect_classes.get(int(label), f"defect_{int(label)}")
+            label_int = int(label)
             
+            # Debug: Print what we're detecting
+            print(f"[DEBUG] Detected class ID: {label_int}, Score: {score:.3f}")
+            
+            # Use smart mapping to ensure only Scratch or Dent
+            class_name = self._get_smart_class_mapping(label_int)
+            
+            # Skip background class (class 0)
+            if class_name is None:
+                print(f"[DEBUG] Skipping background class {label_int}")
+                continue
+            
+            print(f"[DEBUG] Class ID {label_int} -> {class_name}")
+                
             detections.append({
                 "bbox": [int(x1), int(y1), int(x2), int(y2)],
                 "score": float(score),
                 "class": class_name,
-                "class_id": int(label)
+                "class_id": label_int
             })
+            
+        print(f"[DEBUG] Final detections: {len(detections)} found")
         
         return detections
     
@@ -516,12 +540,12 @@ class AutomotiveSurfaceDefectDetector:
 # Vehicle Inspector (Combine both)
 # -------------------------
 class VehicleInspector:
-    def __init__(self, defect_model="yolo", model_path="best.pt", sam2_model=None):
+    def __init__(self, defect_model="fasterrcnn", model_path="fasterrcnn_model.pth", sam2_model=None):
         self.defect_detector = DefectDetector(model_type=defect_model, model_path=model_path)
         self.surface_defect_detector = AutomotiveSurfaceDefectDetector(sam2_model=sam2_model)
     
     def inspect(self, image_path: str) -> Dict:
-        # Detect structural defects (dents, scratches) using YOLO
+        # Detect structural defects (dents, scratches) using FasterRCNN
         structural_defects = self.defect_detector.detect(image_path)
         
         # Detect surface defects (paint, contamination, corrosion, water spots) using SAM2

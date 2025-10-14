@@ -3,7 +3,7 @@
 flask==3.0.3
 gunicorn==22.0.0
 
-# Image processing
+# Image processing and camera access
 pillow==10.4.0
 opencv-python==4.10.0.84
 numpy==2.1.1
@@ -12,12 +12,18 @@ numpy==2.1.1
 torch>=2.2.0
 torchvision>=0.17.0
 
-# YOLO for object detection
-ultralytics>=8.0.0
+# FasterRCNN for object detection (using torchvision)
+# No additional packages needed - included in torchvision
 
-# SAM2 for segmentation and misalignment detection
+# SAM2 for segmentation and surface defect detection
 git+https://github.com/facebookresearch/segment-anything-2.git
 supervision>=0.16.0
 
 # Additional utilities
 tqdm>=4.64.0
+
+# Report generation
+reportlab>=4.0.0
+transformers>=4.30.0
+torch>=2.0.0
+

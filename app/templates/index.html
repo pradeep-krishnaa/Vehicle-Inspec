@@ -12,12 +12,26 @@
         background: #f5f5f5;
       }
       .container { 
-        max-width: 1000px; 
+        max-width: 1400px; 
         margin: 0 auto; 
         background: white; 
         padding: 2rem;
         border-radius: 8px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      .main-layout {
+        display: flex;
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+      .left-panel {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .right-panel {
+        flex: 1;
       }
       h1 { 
         text-align: center; 
@@ -52,16 +66,133 @@
         color: #666;
         margin-top: 0.5rem;
       }
-      .upload-section { 
-        text-align: center; 
-        margin-bottom: 2rem;
+      .camera-section {
         padding: 1rem;
-        border: 1px solid #ddd;
-        border-radius: 5px;
+        border: 2px solid #007bff;
+        border-radius: 8px;
+        background: #f8f9ff;
+        height: fit-content;
       }
-      input[type="file"] { 
-        margin: 1rem;
-        padding: 0.5rem;
+      .camera-section h3 {
+        color: #007bff;
+        margin-bottom: 1rem;
+        text-align: center;
+      }
+      .camera-container {
+        position: relative;
+        border: 2px solid #007bff;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #000;
+      }
+      #cameraFeed {
+        width: 100%;
+        max-width: 480px;
+        height: auto;
+        display: block;
+      }
+      .camera-controls {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .results-section {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #f9f9f9;
+        min-height: 600px;
+      }
+      .results-section h3 {
+        color: #333;
+        margin-bottom: 1rem;
+        text-align: center;
+      }
+      #captureBtn {
+        background: #28a745;
+        color: white;
+        padding: 0.8rem 1.5rem;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: bold;
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        transition: all 0.3s ease;
+      }
+      #captureBtn:hover {
+        background: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(40, 167, 69, 0.4);
+      }
+      #captureBtn:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      .camera-status {
+        font-size: 0.8rem;
+        font-weight: normal;
+      }
+      .no-results {
+        text-align: center;
+        color: #666;
+        padding: 2rem;
+        font-style: italic;
+      }
+      .images {
+        display: flex;
+        gap: 1rem;
+      }
+      .image-box {
+        flex: 1;
+        text-align: center;
+      }
+      .image-box h4 {
+        margin-bottom: 0.5rem;
+        color: #555;
+        font-size: 0.9rem;
+      }
+      .image-box img {
+        width: 100%;
+        height: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      .report-section {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #f0f8ff;
+        border: 1px solid #007bff;
+        border-radius: 5px;
+        text-align: center;
+      }
+      .report-section h4 {
+        color: #007bff;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+      }
+      .report-section p {
+        margin: 0.3rem 0;
+        font-size: 0.9rem;
+      }
+      .report-btn {
+        display: inline-block;
+        background: #007bff;
+        color: white;
+        padding: 0.5rem 1rem;
+        text-decoration: none;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        transition: background 0.3s ease;
+      }
+      .report-btn:hover {
+        background: #0056b3;
+        text-decoration: none;
+        color: white;
       }
       button { 
         background: #d32f2f; 
@@ -77,40 +208,6 @@
       button:disabled { 
         background: #ccc; 
         cursor: not-allowed; 
-      }
-      .results { 
-        margin-top: 2rem; 
-        display: none; 
-      }
-      .images { 
-        display: flex; 
-        gap: 2rem; 
-        margin-bottom: 2rem; 
-      }
-      .image-box { 
-        flex: 1;
-        text-align: center;
-      }
-      .image-box h3 {
-        margin-bottom: 1rem;
-        color: #555;
-      }
-      .image-box img { 
-        max-width: 100%; 
-        height: auto;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-      }
-      .json-output { 
-        background: #f8f8f8; 
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 1rem; 
-        overflow-x: auto;
-        font-family: monospace;
-        font-size: 0.9rem;
-        max-height: 400px;
-        overflow-y: auto;
       }
       .loading { 
         display: none; 
@@ -165,6 +262,9 @@
       }
       
       @media (max-width: 768px) {
+        .main-layout {
+          flex-direction: column;
+        }
         .images { 
           flex-direction: column; 
         }
@@ -176,47 +276,71 @@
           right: 10px;
           padding: 0.8rem 1rem;
         }
+        .container {
+          max-width: 100%;
+          padding: 1rem;
+        }
       }
     </style>
   </head>
   <body>
     <div class="container">
       <h1>Vehicle Inspection Pipeline (AI)</h1>
-      <div class="subtitle">Intelligent Vehicle Defect & Surface Quality Detection</div>
+      <div class="subtitle">Real-time Vehicle Defect & Surface Quality Detection</div>
       
       <div class="mode-selector">
         <label>Detection Mode:</label>
-        <input type="radio" id="yoloOnly" name="detectionMode" value="yolo_only" checked>
-        <label for="yoloOnly">🔍 YOLO Only (Fast)</label>
+        <input type="radio" id="fasterrcnnOnly" name="detectionMode" value="fasterrcnn_only" checked>
+        <label for="fasterrcnnOnly">🔍 FasterRCNN Only (Fast)</label>
         
-        <input type="radio" id="yoloSam2" name="detectionMode" value="yolo_sam2">
-        <label for="yoloSam2">🔍🤖 YOLO + SAM2 (Complete)</label>
+        <input type="radio" id="fasterrcnnSam2" name="detectionMode" value="fasterrcnn_sam2">
+        <label for="fasterrcnnSam2">🔍🤖 FasterRCNN + SAM2 (Complete)</label>
         
         <div class="mode-info">
-          <div id="modeDescription">Detects dents and scratches using YOLO (faster processing)</div>
+          <div id="modeDescription">Detects dents and scratches using FasterRCNN (faster processing)</div>
         </div>
       </div>
       
-      <div class="upload-section">
-        <p>Upload a vehicle image to detect structural defects and surface quality issues</p>
-        <form id="uploadForm">
-          <input type="file" id="imageInput" name="image" accept="image/*" required />
-          <button type="submit" id="submitBtn">Run Inference</button>
-        </form>
-      </div>
-
-      <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <p>Processing image...</p>
-      </div>
-
-      <div class="results" id="results">
-        <div class="images" id="imageComparison">
-          <!-- Images will be populated here -->
+      <div class="main-layout">
+        <!-- Left Panel - Results -->
+        <div class="left-panel">
+          <div class="results-section">
+            <h3>Detection Results</h3>
+            <div class="loading" id="loading" style="display: none;">
+              <div class="spinner"></div>
+              <p>Processing image...</p>
+            </div>
+            <div class="results-content" id="results" style="display: none;">
+              <div class="images" id="imageComparison">
+                <!-- Images will be populated here -->
+              </div>
+            </div>
+            <div id="noResults" class="no-results">
+              <p>Click "Capture & Analyze" to detect defects</p>
+            </div>
+          </div>
         </div>
 
-        <h3>JSON Response</h3>
-        <pre class="json-output" id="jsonResponse">Upload an image to see results...</pre>
+        <!-- Right Panel - Camera -->
+        <div class="right-panel">
+          <div class="camera-section">
+            <h3>LIVE CAMERA FEED <span id="cameraStatus" class="camera-status">🟢 Ready</span></h3>
+            <div class="camera-container">
+              <img id="cameraFeed" src="/video_feed" alt="Camera Feed" onerror="handleCameraError()" onload="handleCameraLoad()" />
+              <div class="camera-controls">
+                <button id="captureBtn" type="button">📸 Capture & Analyze</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Report Section -->
+          <div class="report-section" id="reportSection" style="display: none;">
+            <h4>Inspection Report</h4>
+            <p><strong>Report ID:</strong> <span id="reportId">-</span></p>
+            <p><strong>Total Defects:</strong> <span id="totalDefects">0</span></p>
+            <a href="#" id="reportBtn" target="_blank" class="report-btn">📄 View Full Report (PDF)</a>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -227,23 +351,59 @@
     </div>
 
     <script>
-      const form = document.getElementById('uploadForm');
       const loading = document.getElementById('loading');
       const results = document.getElementById('results');
-      const jsonResponse = document.getElementById('jsonResponse');
       const imageComparison = document.getElementById('imageComparison');
-      const submitBtn = document.getElementById('submitBtn');
+      const noResults = document.getElementById('noResults');
+      const captureBtn = document.getElementById('captureBtn');
+      const cameraStatus = document.getElementById('cameraStatus');
+      const reportSection = document.getElementById('reportSection');
+      const reportId = document.getElementById('reportId');
+      const totalDefects = document.getElementById('totalDefects');
+      const reportBtn = document.getElementById('reportBtn');
       const warningPopup = document.getElementById('warningPopup');
       const warningText = document.getElementById('warningText');
       const modeDescription = document.getElementById('modeDescription');
 
+      function handleCameraError() {
+        cameraStatus.textContent = '🔴 Camera Unavailable';
+        captureBtn.disabled = true;
+        captureBtn.textContent = '📸 Camera Not Available';
+      }
+
+      function handleCameraLoad() {
+        cameraStatus.textContent = '🟢 Camera Active';
+        captureBtn.disabled = false;
+        captureBtn.textContent = '📸 Capture & Analyze';
+      }
+
+      // Check camera status on page load
+      async function checkCameraStatus() {
+        try {
+          const response = await fetch('/api/camera/status');
+          if (response.ok) {
+            cameraStatus.textContent = '🟢 Camera Ready';
+            captureBtn.disabled = false;
+            captureBtn.textContent = '📸 Capture & Analyze';
+          } else {
+            handleCameraError();
+          }
+        } catch (error) {
+          console.error('Camera status check failed:', error);
+          handleCameraError();
+        }
+      }
+
+      // Initialize camera status check
+      checkCameraStatus();
+
       // Handle mode switching
       document.querySelectorAll('input[name="detectionMode"]').forEach(radio => {
         radio.addEventListener('change', function() {
-          if (this.value === 'yolo_only') {
-            modeDescription.textContent = 'Detects dents and scratches using YOLO (faster processing)';
-          } else if (this.value === 'yolo_sam2') {
-            modeDescription.textContent = 'Detects dents, scratches, and surface defects using YOLO + SAM2 (complete inspection)';
+          if (this.value === 'fasterrcnn_only') {
+            modeDescription.textContent = 'Detects dents and scratches using FasterRCNN (faster processing)';
+          } else if (this.value === 'fasterrcnn_sam2') {
+            modeDescription.textContent = 'Detects dents, scratches, and surface defects using FasterRCNN + SAM2 (complete inspection)';
           }
         });
       });
@@ -258,122 +418,131 @@
         }, 4000);
       }
 
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const fileInput = document.getElementById('imageInput');
-        const file = fileInput.files[0];
-        
-        if (!file) {
-          alert('Please select an image file');
-          return;
-        }
-
-        // Show loading
-        loading.classList.add('show');
+      // Camera capture functionality
+      captureBtn.addEventListener('click', async () => {
+        // Show loading, hide other sections
+        loading.style.display = 'block';
         results.style.display = 'none';
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Processing...';
+        noResults.style.display = 'none';
+        captureBtn.disabled = true;
+        captureBtn.textContent = '📸 Capturing...';
 
         try {
-          const formData = new FormData();
-          formData.append('image', file);
-          
           // Get selected detection mode
           const selectedMode = document.querySelector('input[name="detectionMode"]:checked').value;
-          formData.append('detection_mode', selectedMode);
-
-          const response = await fetch('/api/infer', {
+          
+          const response = await fetch('/api/capture', {
             method: 'POST',
-            body: formData
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              detection_mode: selectedMode
+            })
           });
 
           const data = await response.json();
 
+          if (!response.ok) {
+            throw new Error(data.error || 'Capture failed');
+          }
+
           // Hide loading, show results
-          loading.classList.remove('show');
+          loading.style.display = 'none';
           results.style.display = 'block';
+          noResults.style.display = 'none';
 
-          // Show warnings for defects and misalignments
-          const detections = data.defects || [];
-          const misalignments = data.misalignments || [];
-          // selectedMode already declared above
-          
-          let warnings = [];
-          
-          if (detections.length > 0) {
-            const defectCount = detections.length;
-            const defectTypes = [...new Set(detections.map(d => d.defect_type))].join(', ');
-            warnings.push(`${defectCount} defect(s) detected: ${defectTypes}`);
-          }
-          
-          if (selectedMode === 'yolo_sam2' && data.surface_defects && data.surface_defects.length > 0) {
-            const surfaceDefects = data.surface_defects;
-            const highConfidenceDefects = surfaceDefects.filter(s => s.score > 0.7).length;
-            const surfaceDefectTypes = [...new Set(surfaceDefects.map(s => s.class))].join(', ');
-            
-            if (highConfidenceDefects > 0) {
-              warnings.push(`🎨 SURFACE ISSUES: ${highConfidenceDefects} high-confidence surface defect(s) found!`);
-            }
-            warnings.push(`${surfaceDefects.length} surface defect(s): ${surfaceDefectTypes}`);
-          }
-          
-          // Show overall status
-          const overallStatus = data.overall_status || 'UNKNOWN';
-          if (overallStatus === 'FAIL') {
-            warnings.unshift('🚨 INSPECTION FAILED');
-          } else if (overallStatus === 'MINOR_ISSUES') {
-            warnings.unshift('⚠️ Minor issues detected');
-          } else if (overallStatus === 'PASS') {
-            if (selectedMode === 'yolo_only') {
-              warnings.push('✅ Defect Check PASSED');
-            } else {
-              warnings.push('✅ Full Inspection PASSED');
-            }
-          }
-          
-          // Show mode-specific messages
-          if (selectedMode === 'yolo_only') {
-            if (detections.length === 0) {
-              warnings.push('✅ No defects detected (YOLO mode)');
-            }
-          } else {
-            const surfaceDefects = data.surface_defects || [];
-            if (detections.length === 0 && surfaceDefects.length === 0) {
-              warnings.push('✅ No defects or surface issues detected');
-            }
-          }
-          
-          if (warnings.length > 0) {
-            showWarning(warnings.join(' | '));
-          }
-
-          // Update JSON response
-          jsonResponse.textContent = JSON.stringify(data, null, 2);
-
-          // Show images side by side
-          if (data.original_image && data.visualization) {
-            imageComparison.innerHTML = `
-              <div class="image-box">
-                <h3>Original Image</h3>
-                <img src="${data.original_image}" alt="Original Image" />
-              </div>
-              <div class="image-box">
-                <h3>Inspection Results</h3>
-                <img src="${data.visualization}" alt="Inspection Results" />
-              </div>
-            `;
-          }
+          // Process and display results
+          processResults(data, selectedMode);
 
         } catch (error) {
           console.error('Error:', error);
-          alert('Error processing image. Please try again.');
-          loading.classList.remove('show');
+          alert('Error capturing image: ' + error.message);
+          loading.style.display = 'none';
+          noResults.style.display = 'block';
         } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Run Inference';
+          captureBtn.disabled = false;
+          captureBtn.textContent = '📸 Capture & Analyze';
         }
       });
+
+      function processResults(data, selectedMode, isCapture = false) {
+        // Show warnings for defects and surface defects
+        const detections = data.defects || [];
+        const surfaceDefects = data.surface_defects || [];
+        
+        let warnings = [];
+        
+        if (detections.length > 0) {
+          const defectCount = detections.length;
+          const defectTypes = [...new Set(detections.map(d => d.class || d.defect_type))].join(', ');
+          warnings.push(`${defectCount} defect(s) detected: ${defectTypes}`);
+        }
+        
+        if (selectedMode === 'fasterrcnn_sam2' && surfaceDefects && surfaceDefects.length > 0) {
+          const highConfidenceDefects = surfaceDefects.filter(s => s.score > 0.7).length;
+          const surfaceDefectTypes = [...new Set(surfaceDefects.map(s => s.class))].join(', ');
+          
+          if (highConfidenceDefects > 0) {
+            warnings.push(`🎨 SURFACE ISSUES: ${highConfidenceDefects} high-confidence surface defect(s) found!`);
+          }
+          warnings.push(`${surfaceDefects.length} surface defect(s): ${surfaceDefectTypes}`);
+        }
+        
+        // Show overall status
+        const overallStatus = data.overall_status || 'UNKNOWN';
+        if (overallStatus === 'FAIL') {
+          warnings.unshift('🚨 INSPECTION FAILED');
+        } else if (overallStatus === 'MINOR_ISSUES') {
+          warnings.unshift('⚠️ Minor issues detected');
+        } else if (overallStatus === 'PASS') {
+          if (selectedMode === 'fasterrcnn_only') {
+            warnings.push('✅ Defect Check PASSED');
+          } else {
+            warnings.push('✅ Full Inspection PASSED');
+          }
+        }
+        
+        // Show mode-specific messages
+        if (selectedMode === 'fasterrcnn_only') {
+          if (detections.length === 0) {
+            warnings.push('✅ No defects detected (FasterRCNN mode)');
+          }
+        } else {
+          if (detections.length === 0 && surfaceDefects.length === 0) {
+            warnings.push('✅ No defects or surface issues detected');
+          }
+        }
+        
+        if (warnings.length > 0) {
+          showWarning(warnings.join(' | '));
+        }
+
+        // Show images in results area
+        if (data.original_image && data.visualization) {
+          imageComparison.innerHTML = `
+            <div class="image-box">
+              <h4>Captured Image</h4>
+              <img src="${data.original_image}" alt="Captured Image" />
+            </div>
+            <div class="image-box">
+              <h4>Detection Results</h4>
+              <img src="${data.visualization}" alt="Detection Results" />
+            </div>
+          `;
+        }
+
+        // Update report section below camera
+        if (data.report_id && data.report_pdf_url) {
+          reportId.textContent = data.report_id;
+          totalDefects.textContent = data.total_defects || 0;
+          reportBtn.href = data.report_pdf_url;
+          reportSection.style.display = 'block';
+        } else {
+          reportSection.style.display = 'none';
+        }
+      }
+
     </script>
   </body>
 </html>
