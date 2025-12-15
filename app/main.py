@@ -21,6 +21,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
+#github_stat
 # Initialize vehicle inspector (includes defect detection + surface defect detection)
 inspector = VehicleInspector(
     defect_model=os.environ.get("MODEL_TYPE", "fasterrcnn"),  # "fasterrcnn" as default
