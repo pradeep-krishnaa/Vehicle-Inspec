@@ -40,4 +40,10 @@ echo Camera Setup Test (optional):
 echo   python test_camera_setup.py
 echo.
 
-python -m app.main
+set PYTHONPATH=.
+python app/main.py
+
+
+@REM cd InspecAI_v2
+@REM .\venv\Scripts\Activate.ps1
+@REM .\run.bat

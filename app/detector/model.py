@@ -4,6 +4,7 @@ import torch
 import cv2
 import numpy as np
 import os
+import pickle
 
 # -------------------------
 # Defect Detector (YOLO / FasterRCNN) - your existing code
@@ -50,7 +51,7 @@ class DefectDetector:
             if os.path.exists(self.model_path):
                 # Load custom trained model - try to determine class count from checkpoint
                 try:
-                    checkpoint = torch.load(self.model_path, map_location=self.device)
+                    checkpoint = pickle.load(open(self.model_path, 'rb'))
                     
                     # Check the actual number of classes in the saved model
                     if 'roi_heads.box_predictor.cls_score.weight' in checkpoint:
