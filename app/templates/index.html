@@ -5,432 +5,608 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Vehicle Inspection Pipeline (AI)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'dark-bg': '#0f172a',
+              'dark-card': '#1e293b',
+              'dark-border': '#334155',
+              'accent-green': '#10b981',
+              'accent-blue': '#3b82f6',
+              'accent-yellow': '#f59e0b'
+            }
+          }
+        }
+      }
+    </script>
     <style>
-      body { 
-        font-family: Arial, sans-serif; 
-        margin: 2rem; 
-        background: #f5f5f5;
-      }
-      .container { 
-        max-width: 1400px; 
-        margin: 0 auto; 
-        background: white; 
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      }
-      .main-layout {
-        display: flex;
-        gap: 2rem;
-        margin-top: 2rem;
-      }
-      .left-panel {
-        flex: 2;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
-      .right-panel {
-        flex: 1;
-      }
-      h1 { 
-        text-align: center; 
-        color: #d32f2f;
-        margin-bottom: 2rem;
-      }
-      .subtitle {
-        text-align: center;
-        color: #666;
-        margin-bottom: 1rem;
-        font-size: 1.1rem;
-      }
-      .mode-selector {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        padding: 1rem;
-        background: #f8f9fa;
-        border-radius: 5px;
-        border: 1px solid #ddd;
-      }
-      .mode-selector label {
-        margin-right: 1rem;
-        font-weight: bold;
-        color: #333;
-      }
-      .mode-selector input[type="radio"] {
-        margin-right: 0.5rem;
-        margin-left: 1rem;
-      }
-      .mode-info {
-        font-size: 0.9rem;
-        color: #666;
-        margin-top: 0.5rem;
-      }
-      .camera-section {
-        padding: 1rem;
-        border: 2px solid #007bff;
-        border-radius: 8px;
-        background: #f8f9ff;
-        height: fit-content;
-      }
-      .camera-section h3 {
-        color: #007bff;
-        margin-bottom: 1rem;
-        text-align: center;
-      }
+      /* Preserve existing camera and spinner styles */
       .camera-container {
         position: relative;
-        border: 2px solid #007bff;
         border-radius: 8px;
         overflow: hidden;
         background: #000;
+        width: 100%;
+        aspect-ratio: 4/3; /* Maintain consistent aspect ratio */
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       #cameraFeed {
-        width: 100%;
-        max-width: 480px;
-        height: auto;
-        display: block;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 8px;
       }
       .camera-controls {
         position: absolute;
-        bottom: 10px;
+        bottom: 20px;
         left: 50%;
         transform: translateX(-50%);
       }
-      .results-section {
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 1rem;
-        background: #f9f9f9;
-        min-height: 600px;
-      }
-      .results-section h3 {
-        color: #333;
-        margin-bottom: 1rem;
-        text-align: center;
-      }
-      #captureBtn {
-        background: #28a745;
-        color: white;
-        padding: 0.8rem 1.5rem;
-        border: none;
-        border-radius: 25px;
-        cursor: pointer;
-        font-size: 1rem;
-        font-weight: bold;
-        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
-        transition: all 0.3s ease;
-      }
-      #captureBtn:hover {
-        background: #218838;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(40, 167, 69, 0.4);
-      }
-      #captureBtn:disabled {
-        background: #6c757d;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-      }
-      .camera-status {
-        font-size: 0.8rem;
-        font-weight: normal;
-      }
-      .no-results {
-        text-align: center;
-        color: #666;
-        padding: 2rem;
-        font-style: italic;
-      }
-      .images {
-        display: flex;
-        gap: 1rem;
-      }
-      .image-box {
-        flex: 1;
-        text-align: center;
-      }
-      .image-box h4 {
-        margin-bottom: 0.5rem;
-        color: #555;
-        font-size: 0.9rem;
-      }
-      .image-box img {
-        width: 100%;
-        height: auto;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-      }
-      .report-section {
-        margin-top: 1rem;
-        padding: 1rem;
-        background: #f0f8ff;
-        border: 1px solid #007bff;
-        border-radius: 5px;
-        text-align: center;
-      }
-      .report-section h4 {
-        color: #007bff;
-        margin-bottom: 0.5rem;
-        font-size: 1rem;
-      }
-      .report-section p {
-        margin: 0.3rem 0;
-        font-size: 0.9rem;
-      }
-      .report-btn {
-        display: inline-block;
-        background: #007bff;
-        color: white;
-        padding: 0.5rem 1rem;
-        text-decoration: none;
-        border-radius: 4px;
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
-        transition: background 0.3s ease;
-      }
-      .report-btn:hover {
-        background: #0056b3;
-        text-decoration: none;
-        color: white;
-      }
-      button { 
-        background: #d32f2f; 
-        color: white; 
-        padding: 0.7rem 1.5rem; 
-        border: none; 
-        border-radius: 4px; 
-        cursor: pointer; 
-      }
-      button:hover { 
-        background: #b71c1c; 
-      }
-      button:disabled { 
-        background: #ccc; 
-        cursor: not-allowed; 
-      }
-      .loading { 
-        display: none; 
-        text-align: center; 
-        padding: 2rem; 
-      }
-      .loading.show { 
-        display: block; 
-      }
-      
       .spinner {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #3498db;
+        border: 4px solid #374151;
+        border-top: 4px solid #10b981;
         border-radius: 50%;
         width: 50px;
         height: 50px;
         animation: spin 1s linear infinite;
         margin: 0 auto 1rem;
       }
-      
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
-      
-      /* Simple Warning Popup */
-      .warning-popup {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #ff9800;
-        color: white;
-        padding: 1rem 1.5rem;
+      /* Segmented toggle styles */
+      .segmented-toggle {
+        display: flex;
+        background: #374151;
         border-radius: 8px;
-        box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
-        display: none;
-        z-index: 1000;
-        font-weight: 600;
-        transform: translateX(100%);
-        transition: transform 0.3s ease;
+        padding: 4px;
+        gap: 4px;
       }
-      
-      .warning-popup.show {
+      .segmented-toggle input[type="radio"] {
+        display: none;
+      }
+      .segmented-toggle label {
+        flex: 1;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+      .segmented-toggle input[type="radio"]:checked + label {
+        background: #10b981;
+        color: white;
+        box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+      }
+      .segmented-toggle label:hover {
+        background: #4b5563;
+      }
+      /* Progress bar styles */
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #374151;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 4px;
+      }
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981, #34d399);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+      }
+      /* Camera toggle switch styles */
+      .camera-toggle {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+      }
+      .camera-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #374151;
+        transition: 0.3s;
+        border-radius: 24px;
+      }
+      .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+      }
+      input:checked + .toggle-slider {
+        background-color: #10b981;
+      }
+      input:checked + .toggle-slider:before {
+        transform: translateX(26px);
+      }
+      /* Camera off message styles */
+      .camera-off-message {
+        background: #1f2937;
+        border-radius: 8px;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        transform: translateX(0);
+        justify-content: center;
+        min-height: 300px; /* Maintain consistent height */
       }
-      
-      .warning-icon {
-        font-size: 1.2rem;
+      /* Content height constraints */
+      .main-content {
+        max-height: calc(100vh - 120px); /* Account for navbar and padding */
+        overflow-y: auto;
       }
-      
+      /* Responsive adjustments */
       @media (max-width: 768px) {
-        .main-layout {
-          flex-direction: column;
+        .main-grid {
+          grid-template-columns: 1fr;
+          gap: 1rem;
         }
-        .images { 
-          flex-direction: column; 
-        }
-        body {
-          margin: 1rem;
-        }
-        .warning-popup {
-          top: 10px;
-          right: 10px;
-          padding: 0.8rem 1rem;
-        }
-        .container {
-          max-width: 100%;
-          padding: 1rem;
-        }
+      }
+      /* Chatbot styles */
+      #chatFab.dragging {
+        cursor: grabbing;
+      }
+      #chatPopup.dragging {
+        cursor: grabbing;
+      }
+      #chatPopup.resizing {
+        cursor: nw-resize;
+      }
+      #chatPopup.minimized #chatBody {
+        display: none;
+      }
+      #chatPopup.minimized {
+        height: auto !important;
+      }
+      .chat-message.user {
+        justify-content: flex-end;
+      }
+      .chat-message.bot {
+        justify-content: flex-start;
+      }
+      .chat-bubble {
+        max-width: 70%;
+        word-wrap: break-word;
       }
     </style>
   </head>
-  <body>
-    <div class="container">
-      <h1>Vehicle Inspection Pipeline (AI)</h1>
-      <div class="subtitle">Real-time Vehicle Defect & Surface Quality Detection</div>
-      
-      <div class="mode-selector">
-        <label>Detection Mode:</label>
-        <input type="radio" id="fasterrcnnOnly" name="detectionMode" value="fasterrcnn_only" checked>
-        <label for="fasterrcnnOnly">🔍 FasterRCNN Only (Fast)</label>
-        
-        <input type="radio" id="fasterrcnnSam2" name="detectionMode" value="fasterrcnn_sam2">
-        <label for="fasterrcnnSam2">🔍🤖 FasterRCNN + SAM2 (Complete)</label>
-        
-        <div class="mode-info">
-          <div id="modeDescription">Detects dents and scratches using FasterRCNN (faster processing)</div>
-        </div>
-      </div>
-      
-      <div class="main-layout">
-        <!-- Left Panel - Results -->
-        <div class="left-panel">
-          <div class="results-section">
-            <h3>Detection Results</h3>
-            <div class="loading" id="loading" style="display: none;">
-              <div class="spinner"></div>
-              <p>Processing image...</p>
-            </div>
-            <div class="results-content" id="results" style="display: none;">
-              <div class="images" id="imageComparison">
-                <!-- Images will be populated here -->
-              </div>
-            </div>
-            <div id="noResults" class="no-results">
-              <p>Click "Capture & Analyze" to detect defects</p>
-            </div>
+  <body class="bg-dark-bg text-gray-100 min-h-screen">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-dark-card border-b border-dark-border sticky top-0 z-50 shadow-sm">
+      <div class="px-4">
+        <div class="flex justify-between items-center h-18">
+          <!-- Left: Logo and Title -->
+          <div class="flex items-center space-x-3">
+            <span class="text-xl font-bold text-accent-green">InspecAI</span>
+            <span class="text-sm text-gray-400 hidden sm:block">Vehicle Inspection AI</span>
           </div>
-        </div>
 
-        <!-- Right Panel - Camera -->
-        <div class="right-panel">
-          <div class="camera-section">
-            <h3>LIVE CAMERA FEED <span id="cameraStatus" class="camera-status">🟢 Ready</span></h3>
-            <div class="camera-container">
-              <img id="cameraFeed" src="/video_feed" alt="Camera Feed" onerror="handleCameraError()" onload="handleCameraLoad()" />
-              <div class="camera-controls">
-                <button id="captureBtn" type="button">📸 Capture & Analyze</button>
-              </div>
-            </div>
+          <!-- Center: Navigation Links -->
+          <div class="flex items-center space-x-6">
+            <a href="/" class="text-accent-blue border-b-2 border-accent-blue pb-1 font-bold text-sm">Dashboard</a>
+            <a href="/results" class="text-gray-400 hover:text-white transition-colors font-medium text-sm">Detection Results</a>
           </div>
-          
-          <!-- Report Section -->
-          <div class="report-section" id="reportSection" style="display: none;">
-            <h4>Inspection Report</h4>
-            <p><strong>Report ID:</strong> <span id="reportId">-</span></p>
-            <p><strong>Total Defects:</strong> <span id="totalDefects">0</span></p>
-            <a href="#" id="reportBtn" target="_blank" class="report-btn">📄 View Full Report (PDF)</a>
+
+          <!-- Right: Detection Mode -->
+          <div class="flex items-center space-x-3">
+            <span class="text-sm text-gray-400 font-medium">Mode:</span>
+            <div class="segmented-toggle">
+              <input type="radio" id="fasterrcnnOnly" name="detectionMode" value="fasterrcnn_only" checked>
+              <label for="fasterrcnnOnly" class="text-xs font-medium">Fast</label>
+              <input type="radio" id="fasterrcnnSam2" name="detectionMode" value="fasterrcnn_sam2">
+              <label for="fasterrcnnSam2" class="text-xs font-medium">Complete</label>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </nav>
 
-    <!-- Simple Warning Popup -->
-    <div class="warning-popup" id="warningPopup">
-      <span class="warning-icon">⚠️</span>
-      <span class="warning-text" id="warningText">Defects detected!</span>
+    <!-- Main Content -->
+    <div class="w-full pl-4 pr-4 py-4 min-h-screen">
+      <div class="grid grid-cols-2 gap-4 h-fit">
+        <!-- Live Camera Feed -->
+        <div class="bg-dark-card rounded-lg p-4 shadow-lg border border-dark-border flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-white">LIVE CAMERA FEED</h2>
+            <div class="flex items-center space-x-3">
+              <div class="camera-toggle">
+                <input type="checkbox" id="cameraToggle" checked>
+                <label for="cameraToggle" class="toggle-slider"></label>
+              </div>
+            </div>
+          </div>
+          <div class="camera-container mb-3 flex-grow flex items-center justify-center min-h-[200px]">
+            <img id="cameraFeed" src="/video_feed" alt="Camera Feed" class="w-full h-full object-contain" />
+            <div id="cameraOffMessage" class="camera-off-message absolute inset-0 flex items-center justify-center" style="display: none;">
+              <div class="text-center">
+                <div class="text-4xl mb-4">📷</div>
+                <p class="text-gray-400 text-lg font-medium">Camera is Off</p>
+                <p class="text-gray-500 text-sm mt-2">Turn on camera to detect defects</p>
+              </div>
+            </div>
+          </div>
+          <button id="captureBtn" type="button" class="w-full bg-accent-green text-white py-2 px-4 rounded-lg hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed">
+            Capture & Analyze
+          </button>
+        </div>
+
+        <!-- File Upload Section -->
+        <div class="bg-dark-card rounded-lg p-4 shadow-lg border border-dark-border flex flex-col">
+          <h2 class="text-lg font-semibold text-white mb-3">UPLOAD IMAGE</h2>
+          <div class="space-y-3 flex-grow flex flex-col">
+            <div class="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center flex-grow flex items-center justify-center min-h-[200px]">
+              <input type="file" id="fileInput" accept="image/*" class="hidden">
+              <label for="fileInput" class="cursor-pointer w-full h-full flex flex-col items-center justify-center">
+                <div class="text-4xl mb-2">📁</div>
+                <p class="text-gray-400 text-sm">Click to select image file</p>
+                <p class="text-gray-500 text-xs mt-1">Supported: PNG, JPG, JPEG, BMP, TIFF</p>
+              </label>
+            </div>
+            <div id="filePreview" class="hidden flex-grow flex flex-col items-center justify-center min-h-[200px]">
+              <img id="filePreviewImg" class="w-full h-full object-contain rounded-lg" alt="Selected file preview">
+              <p class="text-gray-400 text-sm mt-2 text-center" id="fileName"></p>
+            </div>
+            <button id="uploadBtn" type="button" class="w-full bg-accent-green text-white py-2 px-4 rounded-lg hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>
+              Upload & Analyze
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
-      const loading = document.getElementById('loading');
-      const results = document.getElementById('results');
-      const imageComparison = document.getElementById('imageComparison');
-      const noResults = document.getElementById('noResults');
-      const captureBtn = document.getElementById('captureBtn');
-      const cameraStatus = document.getElementById('cameraStatus');
-      const reportSection = document.getElementById('reportSection');
-      const reportId = document.getElementById('reportId');
-      const totalDefects = document.getElementById('totalDefects');
-      const reportBtn = document.getElementById('reportBtn');
-      const warningPopup = document.getElementById('warningPopup');
-      const warningText = document.getElementById('warningText');
-      const modeDescription = document.getElementById('modeDescription');
+      // Chatbot JavaScript
+      class AIChatbot {
+        constructor() {
+          this.fab = document.getElementById('chatFab');
+          this.popup = document.getElementById('chatPopup');
+          this.header = document.getElementById('chatHeader');
+          this.body = document.getElementById('chatBody');
+          this.messages = document.getElementById('chatMessages');
+          this.input = document.getElementById('chatInput');
+          this.sendBtn = document.getElementById('sendBtn');
+          this.closeBtn = document.getElementById('closeChatBtn');
+          this.minimizeBtn = document.getElementById('minimizeBtn');
 
-      function handleCameraError() {
-        cameraStatus.textContent = '🔴 Camera Unavailable';
-        captureBtn.disabled = true;
-        captureBtn.textContent = '📸 Camera Not Available';
-      }
+          this.isDraggingFab = false;
+          this.isDraggingPopup = false;
+          this.isResizing = false;
+          this.isMinimized = false;
 
-      function handleCameraLoad() {
-        cameraStatus.textContent = '🟢 Camera Active';
-        captureBtn.disabled = false;
-        captureBtn.textContent = '📸 Capture & Analyze';
-      }
+          this.fabOffsetX = 0;
+          this.fabOffsetY = 0;
+          this.popupOffsetX = 0;
+          this.popupOffsetY = 0;
 
-      // Check camera status on page load
-      async function checkCameraStatus() {
-        try {
-          const response = await fetch('/api/camera/status');
-          if (response.ok) {
-            cameraStatus.textContent = '🟢 Camera Ready';
-            captureBtn.disabled = false;
-            captureBtn.textContent = '📸 Capture & Analyze';
-          } else {
-            handleCameraError();
+          this.init();
+        }
+
+        init() {
+          this.loadFabPosition();
+          this.bindEvents();
+        }
+
+        bindEvents() {
+          // FAB events
+          this.fab.addEventListener('mousedown', this.startDragFab.bind(this));
+          this.fab.addEventListener('click', this.toggleChat.bind(this));
+
+          // Popup events
+          this.header.addEventListener('mousedown', this.startDragPopup.bind(this));
+          this.closeBtn.addEventListener('click', this.closeChat.bind(this));
+          this.minimizeBtn.addEventListener('click', this.toggleMinimize.bind(this));
+
+          // Input events
+          this.sendBtn.addEventListener('click', this.sendMessage.bind(this));
+          this.input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.sendMessage();
+          });
+
+          // Global mouse events
+          document.addEventListener('mousemove', this.handleMouseMove.bind(this));
+          document.addEventListener('mouseup', this.handleMouseUp.bind(this));
+
+          // Resize handle (bottom-right corner)
+          this.popup.addEventListener('mousedown', (e) => {
+            if (e.offsetX > this.popup.offsetWidth - 20 && e.offsetY > this.popup.offsetHeight - 20) {
+              this.startResize(e);
+            }
+          });
+        }
+
+        loadFabPosition() {
+          const pos = localStorage.getItem('chatFabPosition');
+          if (pos) {
+            const { x, y } = JSON.parse(pos);
+            this.fab.style.left = x + 'px';
+            this.fab.style.top = y + 'px';
+            this.fab.style.right = 'auto';
+            this.fab.style.bottom = 'auto';
           }
-        } catch (error) {
-          console.error('Camera status check failed:', error);
-          handleCameraError();
+        }
+
+        saveFabPosition() {
+          const rect = this.fab.getBoundingClientRect();
+          localStorage.setItem('chatFabPosition', JSON.stringify({ x: rect.left, y: rect.top }));
+        }
+
+        startDragFab(e) {
+          e.preventDefault();
+          this.isDraggingFab = true;
+          this.fabOffsetX = e.clientX - this.fab.getBoundingClientRect().left;
+          this.fabOffsetY = e.clientY - this.fab.getBoundingClientRect().top;
+          this.fab.classList.add('dragging');
+        }
+
+        startDragPopup(e) {
+          if (this.isMinimized) return;
+          e.preventDefault();
+          this.isDraggingPopup = true;
+          this.popupOffsetX = e.clientX - this.popup.getBoundingClientRect().left;
+          this.popupOffsetY = e.clientY - this.popup.getBoundingClientRect().top;
+          this.popup.classList.add('dragging');
+        }
+
+        startResize(e) {
+          e.preventDefault();
+          this.isResizing = true;
+          this.popup.classList.add('resizing');
+        }
+
+        handleMouseMove(e) {
+          if (this.isDraggingFab) {
+            const x = e.clientX - this.fabOffsetX;
+            const y = e.clientY - this.fabOffsetY;
+            this.fab.style.left = x + 'px';
+            this.fab.style.top = y + 'px';
+            this.fab.style.right = 'auto';
+            this.fab.style.bottom = 'auto';
+          } else if (this.isDraggingPopup) {
+            const x = e.clientX - this.popupOffsetX;
+            const y = e.clientY - this.popupOffsetY;
+            this.popup.style.left = x + 'px';
+            this.popup.style.top = y + 'px';
+          } else if (this.isResizing) {
+            const rect = this.popup.getBoundingClientRect();
+            const newWidth = e.clientX - rect.left;
+            const newHeight = e.clientY - rect.top;
+            if (newWidth > 300) this.popup.style.width = newWidth + 'px';
+            if (newHeight > 200) this.popup.style.height = newHeight + 'px';
+          }
+        }
+
+        handleMouseUp() {
+          if (this.isDraggingFab) {
+            this.saveFabPosition();
+            this.fab.classList.remove('dragging');
+          }
+          if (this.isDraggingPopup) {
+            this.popup.classList.remove('dragging');
+          }
+          if (this.isResizing) {
+            this.popup.classList.remove('resizing');
+          }
+          this.isDraggingFab = false;
+          this.isDraggingPopup = false;
+          this.isResizing = false;
+        }
+
+        toggleChat(e) {
+          if (this.isDraggingFab) return; // Prevent toggle if dragging
+          e.stopPropagation();
+          if (this.popup.classList.contains('hidden')) {
+            this.openChat();
+          } else {
+            this.closeChat();
+          }
+        }
+
+        openChat() {
+          // Position popup near FAB
+          const fabRect = this.fab.getBoundingClientRect();
+          this.popup.style.left = (fabRect.left - 360 - 20) + 'px'; // 20px gap
+          this.popup.style.top = (fabRect.top - 480 + 48) + 'px'; // Align bottom
+          this.popup.classList.remove('hidden');
+          this.input.focus();
+        }
+
+        closeChat() {
+          this.popup.classList.add('hidden');
+          this.isMinimized = false;
+          this.popup.classList.remove('minimized');
+        }
+
+        toggleMinimize() {
+          this.isMinimized = !this.isMinimized;
+          if (this.isMinimized) {
+            this.popup.classList.add('minimized');
+          } else {
+            this.popup.classList.remove('minimized');
+          }
+        }
+
+        sendMessage() {
+          const message = this.input.value.trim();
+          if (!message) return;
+
+          this.addMessage(message, 'user');
+          this.input.value = '';
+
+          // Mock AI response
+          setTimeout(() => {
+            this.handleAIResponse(message);
+          }, 1000);
+        }
+
+        addMessage(text, sender) {
+          const messageDiv = document.createElement('div');
+          messageDiv.className = `flex chat-message ${sender}`;
+          messageDiv.innerHTML = `
+            <div class="chat-bubble bg-${sender === 'user' ? 'accent-green' : 'gray-700'} text-white rounded-lg px-3 py-2">
+              <p>${text}</p>
+            </div>
+          `;
+          this.messages.appendChild(messageDiv);
+          this.messages.scrollTop = this.messages.scrollHeight;
+        }
+
+        handleAIResponse(userMessage) {
+          // Placeholder AI logic - replace with actual API call
+          let response = "I'm here to help with inspection results. What would you like to know?";
+
+          if (userMessage.toLowerCase().includes('scratch')) {
+            response = "Scratches are surface defects detected by our SAM2 model. High confidence scores (above 0.8) indicate reliable detection.";
+          } else if (userMessage.toLowerCase().includes('dent')) {
+            response = "Dents are structural defects detected by FasterRCNN. They typically appear as deformations in the vehicle body.";
+          } else if (userMessage.toLowerCase().includes('confidence')) {
+            response = "Confidence scores range from 0-1. Higher scores mean the model is more certain about the detection.";
+          }
+
+          this.addMessage(response, 'bot');
         }
       }
 
-      // Initialize camera status check
-      checkCameraStatus();
+      // Initialize chatbot when DOM is loaded
+      document.addEventListener('DOMContentLoaded', () => {
+        new AIChatbot();
+      });
 
+      const captureBtn = document.getElementById('captureBtn');
+      const cameraToggle = document.getElementById('cameraToggle');
+      const cameraFeed = document.getElementById('cameraFeed');
+      const cameraOffMessage = document.getElementById('cameraOffMessage');
+
+      // Check camera status on page load
       // Handle mode switching
       document.querySelectorAll('input[name="detectionMode"]').forEach(radio => {
         radio.addEventListener('change', function() {
-          if (this.value === 'fasterrcnn_only') {
-            modeDescription.textContent = 'Detects dents and scratches using FasterRCNN (faster processing)';
-          } else if (this.value === 'fasterrcnn_sam2') {
-            modeDescription.textContent = 'Detects dents, scratches, and surface defects using FasterRCNN + SAM2 (complete inspection)';
-          }
+          // Mode changed - could add visual feedback here if needed
+          console.log('Detection mode changed to:', this.value);
         });
       });
 
-      function showWarning(message) {
-        warningText.textContent = message;
-        warningPopup.classList.add('show');
-        
-        // Auto-hide after 4 seconds
-        setTimeout(() => {
-          warningPopup.classList.remove('show');
-        }, 4000);
-      }
+      // Handle camera toggle
+      cameraToggle.addEventListener('change', () => {
+        if (cameraToggle.checked) {
+          cameraFeed.style.display = 'block';
+          cameraOffMessage.style.display = 'none';
+          // Restart camera feed by setting src
+          cameraFeed.src = '/video_feed?' + Date.now();
+        } else {
+          cameraFeed.style.display = 'none';
+          cameraOffMessage.style.display = 'flex';
+          // Stop camera feed by clearing src
+          cameraFeed.src = '';
+        }
+      });
+
+      // File upload functionality
+      const fileInput = document.getElementById('fileInput');
+      const filePreview = document.getElementById('filePreview');
+      const filePreviewImg = document.getElementById('filePreviewImg');
+      const fileName = document.getElementById('fileName');
+      const uploadBtn = document.getElementById('uploadBtn');
+
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          // Validate file type
+          const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/bmp', 'image/tiff'];
+          if (!allowedTypes.includes(file.type)) {
+            alert('Please select a valid image file (PNG, JPG, JPEG, BMP, TIFF)');
+            return;
+          }
+
+          // Validate file size (max 10MB)
+          if (file.size > 10 * 1024 * 1024) {
+            alert('File size must be less than 10MB');
+            return;
+          }
+
+          // Show preview
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            filePreviewImg.src = e.target.result;
+            fileName.textContent = file.name;
+            filePreview.style.display = 'block';
+            uploadBtn.disabled = false;
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      // File upload functionality
+      uploadBtn.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = '📤 Uploading...';
+
+        try {
+          // Get selected detection mode
+          const selectedMode = document.querySelector('input[name="detectionMode"]:checked').value;
+
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('detection_mode', selectedMode);
+
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Upload failed');
+          }
+
+          // Process and redirect to results
+          processResults(data, selectedMode, true);
+
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error uploading image: ' + error.message);
+        } finally {
+          uploadBtn.disabled = false;
+          uploadBtn.textContent = '📤 Upload & Analyze';
+        }
+      });
 
       // Camera capture functionality
       captureBtn.addEventListener('click', async () => {
-        // Show loading, hide other sections
-        loading.style.display = 'block';
-        results.style.display = 'none';
-        noResults.style.display = 'none';
         captureBtn.disabled = true;
         captureBtn.textContent = '📸 Capturing...';
 
         try {
           // Get selected detection mode
           const selectedMode = document.querySelector('input[name="detectionMode"]:checked').value;
-          
+
           const response = await fetch('/api/capture', {
             method: 'POST',
             headers: {
@@ -447,102 +623,116 @@
             throw new Error(data.error || 'Capture failed');
           }
 
-          // Hide loading, show results
-          loading.style.display = 'none';
-          results.style.display = 'block';
-          noResults.style.display = 'none';
-
-          // Process and display results
+          // Process and redirect to results
           processResults(data, selectedMode);
 
         } catch (error) {
           console.error('Error:', error);
           alert('Error capturing image: ' + error.message);
-          loading.style.display = 'none';
-          noResults.style.display = 'block';
         } finally {
           captureBtn.disabled = false;
           captureBtn.textContent = '📸 Capture & Analyze';
         }
       });
 
-      function processResults(data, selectedMode, isCapture = false) {
-        // Show warnings for defects and surface defects
-        const detections = data.defects || [];
-        const surfaceDefects = data.surface_defects || [];
-        
-        let warnings = [];
-        
-        if (detections.length > 0) {
-          const defectCount = detections.length;
-          const defectTypes = [...new Set(detections.map(d => d.class || d.defect_type))].join(', ');
-          warnings.push(`${defectCount} defect(s) detected: ${defectTypes}`);
-        }
-        
-        if (selectedMode === 'fasterrcnn_sam2' && surfaceDefects && surfaceDefects.length > 0) {
-          const highConfidenceDefects = surfaceDefects.filter(s => s.score > 0.7).length;
-          const surfaceDefectTypes = [...new Set(surfaceDefects.map(s => s.class))].join(', ');
-          
-          if (highConfidenceDefects > 0) {
-            warnings.push(`🎨 SURFACE ISSUES: ${highConfidenceDefects} high-confidence surface defect(s) found!`);
-          }
-          warnings.push(`${surfaceDefects.length} surface defect(s): ${surfaceDefectTypes}`);
-        }
-        
-        // Show overall status
-        const overallStatus = data.overall_status || 'UNKNOWN';
-        if (overallStatus === 'FAIL') {
-          warnings.unshift('🚨 INSPECTION FAILED');
-        } else if (overallStatus === 'MINOR_ISSUES') {
-          warnings.unshift('⚠️ Minor issues detected');
-        } else if (overallStatus === 'PASS') {
-          if (selectedMode === 'fasterrcnn_only') {
-            warnings.push('✅ Defect Check PASSED');
-          } else {
-            warnings.push('✅ Full Inspection PASSED');
-          }
-        }
-        
-        // Show mode-specific messages
-        if (selectedMode === 'fasterrcnn_only') {
-          if (detections.length === 0) {
-            warnings.push('✅ No defects detected (FasterRCNN mode)');
-          }
-        } else {
-          if (detections.length === 0 && surfaceDefects.length === 0) {
-            warnings.push('✅ No defects or surface issues detected');
-          }
-        }
-        
-        if (warnings.length > 0) {
-          showWarning(warnings.join(' | '));
-        }
+      function processResults(data, selectedMode, isUpload = false) {
+        // Store results data and redirect to results page
+        data.source = isUpload ? 'Uploaded' : 'Captured';
 
-        // Show images in results area
-        if (data.original_image && data.visualization) {
-          imageComparison.innerHTML = `
-            <div class="image-box">
-              <h4>Captured Image</h4>
-              <img src="${data.original_image}" alt="Captured Image" />
-            </div>
-            <div class="image-box">
-              <h4>Detection Results</h4>
-              <img src="${data.visualization}" alt="Detection Results" />
-            </div>
-          `;
-        }
+        // Store in localStorage for the results page
+        localStorage.setItem('lastDetectionResults', JSON.stringify(data));
 
-        // Update report section below camera
-        if (data.report_id && data.report_pdf_url) {
-          reportId.textContent = data.report_id;
-          totalDefects.textContent = data.total_defects || 0;
-          reportBtn.href = data.report_pdf_url;
-          reportSection.style.display = 'block';
-        } else {
-          reportSection.style.display = 'none';
-        }
+        // Redirect to results page
+        window.location.href = '/results';
+      }
+
+      function updateDefectSummary(metrics) {
+        // Update Dent count and progress
+        const dentCount = metrics.dent?.count || 0;
+        const dentAvgConf = metrics.dent?.avg_confidence || 0;
+        document.querySelector('.space-y-2 > div:nth-child(1) .flex.justify-between span:nth-child(2)').textContent = dentCount;
+        document.querySelector('.space-y-2 > div:nth-child(1) .progress-fill').style.width = `${Math.min(dentAvgConf * 100, 100)}%`;
+
+        // Update Scratch count and progress
+        const scratchCount = metrics.scratch?.count || 0;
+        const scratchAvgConf = metrics.scratch?.avg_confidence || 0;
+        document.querySelector('.space-y-2 > div:nth-child(2) .flex.justify-between span:nth-child(2)').textContent = scratchCount;
+        document.querySelector('.space-y-2 > div:nth-child(2) .progress-fill').style.width = `${Math.min(scratchAvgConf * 100, 100)}%`;
+
+        // Update Surface Irregularity count and progress
+        const surfaceCount = metrics.surface_irregularity?.count || 0;
+        const surfaceAvgConf = metrics.surface_irregularity?.avg_confidence || 0;
+        document.querySelector('.space-y-2 > div:nth-child(3) .flex.justify-between span:nth-child(2)').textContent = surfaceCount;
+        document.querySelector('.space-y-2 > div:nth-child(3) .progress-fill').style.width = `${Math.min(surfaceAvgConf * 100, 100)}%`;
+      }
+
+      function updateConfidenceMetrics(metrics) {
+        // Calculate overall metrics
+        const allDefects = [metrics.dent, metrics.scratch, metrics.surface_irregularity].filter(m => m && m.count > 0);
+        const avgConfidence = allDefects.length > 0 ? allDefects.reduce((sum, m) => sum + m.avg_confidence, 0) / allDefects.length : 0;
+        const maxConfidence = allDefects.length > 0 ? Math.max(...allDefects.map(m => m.max_confidence)) : 0;
+
+        // Update confidence metrics display
+        document.querySelector('.space-y-2 .flex.justify-between:nth-child(1) span:nth-child(2)').textContent = avgConfidence > 0 ? `${(avgConfidence * 100).toFixed(1)}%` : '--';
+        document.querySelector('.space-y-2 .flex.justify-between:nth-child(2) span:nth-child(2)').textContent = maxConfidence > 0 ? `${(maxConfidence * 100).toFixed(1)}%` : '--';
       }
 
     </script>
+
+    <!-- AI Chatbot HTML -->
+    <!-- Floating Chat Button -->
+    <div id="chatFab" class="fixed bottom-6 right-6 w-12 h-12 bg-accent-green rounded-full shadow-lg cursor-pointer z-50 flex items-center justify-center hover:bg-green-600 transition-colors">
+      <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+      </svg>
+    </div>
+
+    <!-- Chat Popup Window -->
+    <div id="chatPopup" class="fixed bg-dark-card border border-dark-border rounded-lg shadow-2xl z-40 hidden" style="width: 360px; height: 480px;">
+      <!-- Chat Header -->
+      <div id="chatHeader" class="bg-dark-card border-b border-dark-border rounded-t-lg p-3 cursor-move flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <h3 class="text-white font-semibold">AI Inspection Assistant</h3>
+          <div class="flex items-center space-x-1">
+            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+          </div>
+        </div>
+        <div class="flex space-x-1">
+          <button id="minimizeBtn" class="text-gray-400 hover:text-white p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+            </svg>
+          </button>
+          <button id="closeChatBtn" class="text-gray-400 hover:text-white p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Chat Body -->
+      <div id="chatBody" class="flex-1 p-3 overflow-y-auto" style="height: calc(100% - 120px);">
+        <div id="chatMessages" class="space-y-3">
+          <!-- Messages will be added here -->
+          <div class="flex justify-start">
+            <div class="bg-gray-700 text-white rounded-lg px-3 py-2 max-w-xs">
+              <p>Hello! I'm your AI Inspection Assistant. I can help explain inspection results and answer questions about vehicle defects.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Input -->
+      <div class="border-t border-dark-border p-3">
+        <div class="flex space-x-2">
+          <input type="text" id="chatInput" placeholder="Ask me about inspection results..." class="flex-1 bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-accent-green">
+          <button id="sendBtn" class="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+
   </body>
-</html>
+</html> 

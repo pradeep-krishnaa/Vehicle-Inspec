@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Detection Results - Vehicle Inspection AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'dark-bg': '#0f172a',
+              'dark-card': '#1e293b',
+              'dark-border': '#334155',
+              'accent-green': '#10b981',
+              'accent-blue': '#3b82f6',
+              'accent-yellow': '#f59e0b'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Preserve existing styles */
+      .spinner {
+        border: 4px solid #374151;
+        border-top: 4px solid #10b981;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      /* Segmented toggle styles */
+      .segmented-toggle {
+        display: flex;
+        background: #374151;
+        border-radius: 8px;
+        padding: 4px;
+        gap: 4px;
+      }
+      .segmented-toggle input[type="radio"] {
+        display: none;
+      }
+      .segmented-toggle label {
+        flex: 1;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+      .segmented-toggle input[type="radio"]:checked + label {
+        background: #10b981;
+        color: white;
+        box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+      }
+      .segmented-toggle label:hover {
+        background: #4b5563;
+      }
+    </style>
+  </head>
+  <body class="bg-dark-bg text-gray-100 min-h-screen">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-dark-card border-b border-dark-border sticky top-0 z-50 shadow-sm">
+      <div class="px-4">
+        <div class="flex justify-between items-center h-18">
+          <!-- Left: Logo and Title -->
+          <div class="flex items-center space-x-3">
+            <span class="text-xl font-bold text-accent-green">InspecAI</span>
+            <span class="text-sm text-gray-400 hidden sm:block">Vehicle Inspection AI</span>
+          </div>
+
+          <!-- Center: Navigation Links -->
+          <div class="flex items-center space-x-6">
+            <a href="/" class="text-gray-400 hover:text-white transition-colors font-medium text-sm">Dashboard</a>
+            <a href="/results" class="text-accent-blue border-b-2 border-accent-blue pb-1 font-bold text-sm">Detection Results</a>
+          </div>
+
+          <!-- Right: Detection Mode -->
+          <div class="flex items-center space-x-3">
+            <span class="text-sm text-gray-400 font-medium">Mode:</span>
+            <div class="segmented-toggle">
+              <input type="radio" id="fasterrcnnOnly" name="detectionMode" value="fasterrcnn_only" checked>
+              <label for="fasterrcnnOnly" class="text-xs font-medium">Fast</label>
+              <input type="radio" id="fasterrcnnSam2" name="detectionMode" value="fasterrcnn_sam2">
+              <label for="fasterrcnnSam2" class="text-xs font-medium">Complete</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="w-full pl-4 pr-4 py-4 min-h-screen">
+      <!-- Page Title -->
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-white mb-2">Detection Results</h1>
+        <p class="text-gray-400">View detailed analysis of your vehicle inspections</p>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading" class="hidden text-center py-12">
+        <div class="spinner"></div>
+        <p class="text-gray-400">Processing detection results...</p>
+      </div>
+
+      <!-- No Results State -->
+      <div id="noResults" class="text-center py-12">
+        <div class="text-6xl mb-4">🔍</div>
+        <h3 class="text-xl font-semibold text-gray-400 mb-2">No Detection Results</h3>
+        <p class="text-gray-500 mb-6">Upload an image or capture from camera to see detection results</p>
+        <a href="/" class="inline-block bg-accent-green text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors">
+          Go to Dashboard
+        </a>
+      </div>
+
+      <!-- Results Content -->
+      <div id="results" class="hidden">
+        <!-- Two-Card Grid Layout -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <!-- Uploaded Image Card -->
+          <div class="bg-dark-card rounded-lg p-4 shadow-lg border border-dark-border flex flex-col">
+            <h2 class="text-lg font-semibold text-white mb-3">UPLOADED IMAGE</h2>
+            <div class="flex-grow flex items-center justify-center min-h-[300px] p-2">
+              <img id="originalImage" class="w-full h-full object-contain rounded-lg" alt="Original uploaded image" style="display: none;">
+              <div id="originalImagePlaceholder" class="text-center">
+                <div class="text-4xl mb-4">📷</div>
+                <p class="text-gray-400">Original image will appear here</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detection Results Card -->
+          <div class="bg-dark-card rounded-lg p-4 shadow-lg border border-dark-border flex flex-col">
+            <h2 class="text-lg font-semibold text-white mb-3">DETECTION RESULTS</h2>
+            <div class="flex-grow flex items-center justify-center min-h-[300px] p-2">
+              <img id="processedImage" class="w-full h-full object-contain rounded-lg" alt="Processed image with detections" style="display: none;">
+              <div id="processedImagePlaceholder" class="text-center">
+                <div class="text-4xl mb-4">🔍</div>
+                <p class="text-gray-400">Detection results will appear here</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detection Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <!-- Defect Summary -->
+          <div class="bg-dark-card rounded-lg p-4 shadow-lg border border-dark-border">
+            <h3 class="text-lg font-semibold text-white mb-4">Defect Summary</h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-2">
+                  <span class="text-gray-400">Dent</span>
+                  <span class="text-white font-medium" id="dentCount">--</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" id="dentProgress" style="width: 0%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-2">
+                  <span class="text-gray-400">Scratch</span>
+                  <span class="text-white font-medium" id="scratchCount">--</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" id="scratchProgress" style="width: 0%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-2">
+                  <span class="text-gray-400">Surface Irregularity</span>
+                  <span class="text-white font-medium" id="surfaceCount">--</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" id="surfaceProgress" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Confidence Metrics -->
+          <div class="bg-dark-card rounded-lg p-4 shadow-lg border border-dark-border">
+            <h3 class="text-lg font-semibold text-white mb-4">Confidence Metrics</h3>
+            <div class="space-y-3">
+              <div class="flex justify-between">
+                <span class="text-gray-400">Average Confidence</span>
+                <span class="text-accent-green font-medium" id="avgConfidence">--</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Max Confidence</span>
+                <span class="text-accent-blue font-medium" id="maxConfidence">--</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Threshold Used</span>
+                <span class="text-accent-yellow font-medium">50%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Results -->
+        <div class="bg-dark-card rounded-lg p-4 shadow-lg border border-dark-border mb-6">
+          <h3 class="text-lg font-semibold text-white mb-4">Detailed Detection Results</h3>
+          <div id="detailedResults" class="space-y-4">
+            <!-- Detailed results will be populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Report Section -->
+        <div class="bg-dark-card rounded-lg p-4 shadow-lg border border-dark-border" id="reportSection">
+          <h3 class="text-lg font-semibold text-accent-blue mb-4">Inspection Report</h3>
+          <div class="space-y-2 text-sm">
+            <p class="text-gray-400 italic">No report generated yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Load results from localStorage or URL parameters
+      document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const resultData = urlParams.get('data');
+
+        if (resultData) {
+          try {
+            const data = JSON.parse(decodeURIComponent(resultData));
+            displayResults(data);
+          } catch (e) {
+            console.error('Error parsing result data:', e);
+            showNoResults();
+          }
+        } else {
+          // Check localStorage for last results
+          const lastResults = localStorage.getItem('lastDetectionResults');
+          if (lastResults) {
+            try {
+              const data = JSON.parse(lastResults);
+              displayResults(data);
+            } catch (e) {
+              showNoResults();
+            }
+          } else {
+            showNoResults();
+          }
+        }
+      });
+
+      function displayResults(data) {
+        document.getElementById('noResults').classList.add('hidden');
+        document.getElementById('results').classList.remove('hidden');
+
+        // Update defect summary
+        updateDefectSummary(data.metrics || {});
+
+        // Update confidence metrics
+        updateConfidenceMetrics(data.metrics || {});
+
+        // Show images
+        if (data.original_image && data.visualization) {
+          // Show original image
+          const originalImg = document.getElementById('originalImage');
+          const originalPlaceholder = document.getElementById('originalImagePlaceholder');
+          originalImg.src = data.original_image;
+          originalImg.style.display = 'block';
+          originalPlaceholder.style.display = 'none';
+
+          // Show processed image
+          const processedImg = document.getElementById('processedImage');
+          const processedPlaceholder = document.getElementById('processedImagePlaceholder');
+          processedImg.src = data.visualization;
+          processedImg.style.display = 'block';
+          processedPlaceholder.style.display = 'none';
+        }
+
+        // Show detailed results
+        displayDetailedResults(data);
+
+        // Update report section
+        if (data.report_id && data.report_pdf_url) {
+          const totalStructural = data.total_defects || 0;
+          const totalSurface = data.total_surface_defects || 0;
+          const totalAll = totalStructural + totalSurface;
+
+          document.getElementById('reportSection').innerHTML = `
+            <h3 class="text-lg font-semibold text-accent-blue mb-4">Inspection Report</h3>
+            <div class="space-y-2 text-sm">
+              <p><strong class="text-gray-400">Report ID:</strong> <span class="text-white">${data.report_id}</span></p>
+              <p><strong class="text-gray-400">Structural Defects:</strong> <span class="text-white">${totalStructural}</span></p>
+              <p><strong class="text-gray-400">Surface Defects:</strong> <span class="text-white">${totalSurface}</span></p>
+              <p><strong class="text-gray-400">Total Defects:</strong> <span class="text-accent-yellow font-medium">${totalAll}</span></p>
+            </div>
+            <a href="${data.report_pdf_url}" target="_blank" class="inline-block bg-accent-blue text-white px-4 py-2 rounded-lg mt-4 font-medium hover:bg-blue-600 transition-colors">📄 View Full Report (PDF)</a>
+          `;
+        }
+      }
+
+      function updateDefectSummary(metrics) {
+        // Update Dent
+        const dentCount = metrics.dent?.count || 0;
+        const dentAvgConf = metrics.dent?.avg_confidence || 0;
+        document.getElementById('dentCount').textContent = dentCount;
+        document.getElementById('dentProgress').style.width = `${Math.min(dentAvgConf * 100, 100)}%`;
+
+        // Update Scratch
+        const scratchCount = metrics.scratch?.count || 0;
+        const scratchAvgConf = metrics.scratch?.avg_confidence || 0;
+        document.getElementById('scratchCount').textContent = scratchCount;
+        document.getElementById('scratchProgress').style.width = `${Math.min(scratchAvgConf * 100, 100)}%`;
+
+        // Update Surface Irregularity
+        const surfaceCount = metrics.surface_irregularity?.count || 0;
+        const surfaceAvgConf = metrics.surface_irregularity?.avg_confidence || 0;
+        document.getElementById('surfaceCount').textContent = surfaceCount;
+        document.getElementById('surfaceProgress').style.width = `${Math.min(surfaceAvgConf * 100, 100)}%`;
+      }
+
+      function updateConfidenceMetrics(metrics) {
+        // Calculate overall metrics
+        const allDefects = [metrics.dent, metrics.scratch, metrics.surface_irregularity].filter(m => m && m.count > 0);
+        const avgConfidence = allDefects.length > 0 ? allDefects.reduce((sum, m) => sum + m.avg_confidence, 0) / allDefects.length : 0;
+        const maxConfidence = allDefects.length > 0 ? Math.max(...allDefects.map(m => m.max_confidence)) : 0;
+
+        document.getElementById('avgConfidence').textContent = avgConfidence > 0 ? `${(avgConfidence * 100).toFixed(1)}%` : '--';
+        document.getElementById('maxConfidence').textContent = maxConfidence > 0 ? `${(maxConfidence * 100).toFixed(1)}%` : '--';
+      }
+
+      function displayDetailedResults(data) {
+        const detailedResults = document.getElementById('detailedResults');
+        let html = '';
+
+        // Structural defects
+        if (data.defects_with_ids && data.defects_with_ids.length > 0) {
+          html += '<h4 class="text-md font-semibold text-white mb-3">Structural Defects</h4>';
+          html += '<div class="space-y-2 mb-4">';
+
+          data.defects_with_ids.forEach(defect => {
+            html += `
+              <div class="bg-gray-800 rounded-lg p-3">
+                <div class="flex justify-between items-center">
+                  <span class="text-white font-medium">${defect.class}</span>
+                  <span class="text-accent-green">${(defect.score * 100).toFixed(1)}% confidence</span>
+                </div>
+                <p class="text-gray-400 text-sm mt-1">Location: ${defect.location}</p>
+              </div>
+            `;
+          });
+
+          html += '</div>';
+        }
+
+        // Surface defects
+        if (data.surface_defects_with_ids && data.surface_defects_with_ids.length > 0) {
+          html += '<h4 class="text-md font-semibold text-white mb-3">Surface Defects</h4>';
+          html += '<div class="space-y-2">';
+
+          data.surface_defects_with_ids.forEach(defect => {
+            html += `
+              <div class="bg-gray-800 rounded-lg p-3">
+                <div class="flex justify-between items-center">
+                  <span class="text-white font-medium">${defect.class}</span>
+                  <span class="text-accent-green">${(defect.score * 100).toFixed(1)}% confidence</span>
+                </div>
+                <p class="text-gray-400 text-sm mt-1">Location: ${defect.location} | Area: ${defect.area}px</p>
+              </div>
+            `;
+          });
+
+          html += '</div>';
+        }
+
+        if (!html) {
+          html = '<p class="text-gray-400 text-center py-4">No defects detected</p>';
+        }
+
+        detailedResults.innerHTML = html;
+      }
+
+      function showNoResults() {
+        document.getElementById('noResults').classList.remove('hidden');
+        document.getElementById('results').classList.add('hidden');
+      }
+    </script>
+  </body>
+</html>
