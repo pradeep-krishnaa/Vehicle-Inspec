@@ -194,66 +194,372 @@ def capture_and_infer():
     out_path = os.path.join(OUTPUT_DIR, f"{image_id}.jpg")
     cv2.imwrite(in_path, frame)
     
-    # Run inference based on selected mode
-    if detection_mode == 'fasterrcnn_only':
-        # FasterRCNN only - just defect detection
-        raw_defects = inspector.defect_detector.detect(in_path)
-        inspection_results = {
-            "defects": raw_defects,
-            "surface_defects": []  # No surface defects in FasterRCNN-only mode
-        }
-        print(f"[API] FasterRCNN-only mode: Found {len(raw_defects)} defects")
-    else:
-        # Full Vehicle Inspection (FasterRCNN + SAM2)
-        inspection_results = inspector.inspect(in_path)
-        raw_defects = inspection_results.get('defects', [])
-        print(f"[API] Full inspection mode: Found {len(raw_defects)} structural defects, {len(inspection_results.get('surface_defects', []))} surface defects")
-    
-    # Add unique IDs to each defect and prepare for report
-    processed_defects = []
-    for defect in raw_defects:
-        defect_with_id = {
-            "id": report_generator.generate_unique_defect_id(),
-            "class": defect.get("class", "Unknown"),
-            "score": defect.get("score", 0.0),
-            "bbox": defect.get("bbox", [0, 0, 0, 0]),
-            "location": _determine_location_from_bbox(defect.get("bbox", [0, 0, 0, 0]), frame.shape)
-        }
-        processed_defects.append(defect_with_id)
-    
-    # Visualization
-    draw_inspection_results(in_path, inspection_results, out_path)
-    
-    # Generate report
-    report_data = {
-        "id": report_id,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "image_id": image_id,
-        "original_image_path": in_path,
-        "processed_image_path": out_path,
-        "detection_mode": detection_mode
+    try:
+        # Run inference based on selected mode
+        if detection_mode == 'fasterrcnn_only':
+            # FasterRCNN only - just defect detection
+            raw_defects = inspector.defect_detector.detect(in_path)
+            inspection_results = {
+                "defects": raw_defects,
+                "surface_defects": []  # No surface defects in FasterRCNN-only mode
+            }
+            print(f"[API] FasterRCNN-only mode: Found {len(raw_defects)} defects")
+            
+            # Add unique IDs to each defect and prepare for report
+            processed_defects = []
+            for defect in raw_defects:
+                defect_with_id = {
+                    "id": report_generator.generate_unique_defect_id(),
+                    "class": defect.get("class", "Unknown"),
+                    "score": defect.get("score", 0.0),
+                    "bbox": defect.get("bbox", [0, 0, 0, 0]),
+                    "location": _determine_location_from_bbox(defect.get("bbox", [0, 0, 0, 0]), frame.shape)
+                }
+                processed_defects.append(defect_with_id)
+            
+            # Process surface defects (empty for fasterrcnn_only)
+            processed_surface_defects = []
+            
+            # Visualization
+            draw_inspection_results(in_path, inspection_results, out_path)
+            
+            # Generate report
+            report_data = {
+                "id": report_id,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "image_id": image_id,
+                "original_image_path": in_path,
+                "processed_image_path": out_path,
+                "detection_mode": detection_mode
+            }
+            
+            # Generate PDF report
+            pdf_report_path = f"app/static/reports/report_{report_id}.pdf"
+            pdf_path = report_generator.create_pdf_report(report_data, processed_defects, pdf_report_path)
+            
+            # Generate JSON report
+            json_report = report_generator.create_json_report(report_data, processed_defects)
+            
+            # Calculate metrics for UI
+            metrics = _calculate_detection_metrics(processed_defects, processed_surface_defects)
+            
+            # Prepare response
+            response = to_inspection_response_schema(image_id=image_id, results=inspection_results, visualization_path=out_path)
+            
+            # Add report information and metrics to response
+            response.update({
+                "report_id": report_id,
+                "report_pdf_url": f"/reports/{os.path.basename(pdf_path)}" if pdf_path else None,
+                "report_json": json_report,
+                "total_defects": len(processed_defects),
+                "total_surface_defects": len(processed_surface_defects),
+                "defects_with_ids": processed_defects,
+                "surface_defects_with_ids": processed_surface_defects,
+                "metrics": metrics
+            })
+            
+            return jsonify(response)
+        else:
+            # Full Vehicle Inspection (FasterRCNN + SAM2)
+            inspection_results = inspector.inspect(in_path)
+            raw_defects = inspection_results.get('defects', [])
+            print(f"[API] Full inspection mode: Found {len(raw_defects)} structural defects, {len(inspection_results.get('surface_defects', []))} surface defects")
+            
+            # Add unique IDs to each defect and prepare for report
+            processed_defects = []
+            for defect in raw_defects:
+                defect_with_id = {
+                    "id": report_generator.generate_unique_defect_id(),
+                    "class": defect.get("class", "Unknown"),
+                    "score": defect.get("score", 0.0),
+                    "bbox": defect.get("bbox", [0, 0, 0, 0]),
+                    "location": _determine_location_from_bbox(defect.get("bbox", [0, 0, 0, 0]), frame.shape)
+                }
+                processed_defects.append(defect_with_id)
+            
+            # Process surface defects
+            processed_surface_defects = []
+            surface_defects = inspection_results.get('surface_defects', [])
+            for defect in surface_defects:
+                surface_defect_with_id = {
+                    "id": report_generator.generate_unique_defect_id(),
+                    "class": defect.get("class", "Unknown"),
+                    "score": defect.get("score", 0.0),
+                    "bbox": defect.get("bbox", [0, 0, 0, 0]),
+                    "location": defect.get("location", "unknown"),
+                    "area": defect.get("area", 0)
+                }
+                processed_surface_defects.append(surface_defect_with_id)
+            
+            # Visualization
+            draw_inspection_results(in_path, inspection_results, out_path)
+            
+            # Generate report
+            report_data = {
+                "id": report_id,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "image_id": image_id,
+                "original_image_path": in_path,
+                "processed_image_path": out_path,
+                "detection_mode": detection_mode
+            }
+            
+            # Generate PDF report
+            pdf_report_path = f"app/static/reports/report_{report_id}.pdf"
+            pdf_path = report_generator.create_pdf_report(report_data, processed_defects, pdf_report_path)
+            
+            # Generate JSON report
+            json_report = report_generator.create_json_report(report_data, processed_defects)
+            
+            # Calculate metrics for UI
+            metrics = _calculate_detection_metrics(processed_defects, processed_surface_defects)
+            
+            # Prepare response
+            response = to_inspection_response_schema(image_id=image_id, results=inspection_results, visualization_path=out_path)
+            
+            # Add report information and metrics to response
+            response.update({
+                "report_id": report_id,
+                "report_pdf_url": f"/reports/{os.path.basename(pdf_path)}" if pdf_path else None,
+                "report_json": json_report,
+                "total_defects": len(processed_defects),
+                "total_surface_defects": len(processed_surface_defects),
+                "defects_with_ids": processed_defects,
+                "surface_defects_with_ids": processed_surface_defects,
+                "metrics": metrics
+            })
+            
+            return jsonify(response)
+        
+    except Exception as e:
+        print(f"[API] Error during capture inference: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Inference failed: {str(e)}"}), 500
+
+@app.route('/api/upload', methods=['POST'])
+def upload_and_infer():
+    """Upload image file and run inference"""
+    try:
+        # Check if file is in request
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        # Validate file type
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'bmp', 'tiff'}
+        if not file.filename.lower().split('.')[-1] in allowed_extensions:
+            return jsonify({"error": "Invalid file type. Allowed: PNG, JPG, JPEG, BMP, TIFF"}), 400
+        
+        # Get detection mode
+        detection_mode = request.form.get('detection_mode', 'fasterrcnn_only')
+        
+        # Generate unique IDs
+        image_id = str(uuid.uuid4())[:8]
+        report_id = report_generator.generate_unique_report_id()
+        
+        # Save uploaded file
+        in_path = os.path.join(UPLOAD_DIR, f"{image_id}.jpg")
+        out_path = os.path.join(OUTPUT_DIR, f"{image_id}.jpg")
+        
+        # Read and save the uploaded image
+        file_bytes = file.read()
+        nparr = np.frombuffer(file_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            return jsonify({"error": "Invalid image file"}), 400
+        
+        cv2.imwrite(in_path, frame)
+        print(f"Uploaded image saved with shape: {frame.shape}")
+        
+        # Run inference based on selected mode
+        if detection_mode == 'fasterrcnn_only':
+            # FasterRCNN only - just defect detection
+            raw_defects = inspector.defect_detector.detect(in_path)
+            inspection_results = {
+                "defects": raw_defects,
+                "surface_defects": []  # No surface defects in FasterRCNN-only mode
+            }
+            print(f"[API] FasterRCNN-only mode: Found {len(raw_defects)} defects")
+            
+            # Add unique IDs to each defect and prepare for report
+            processed_defects = []
+            for defect in raw_defects:
+                defect_with_id = {
+                    "id": report_generator.generate_unique_defect_id(),
+                    "class": defect.get("class", "Unknown"),
+                    "score": defect.get("score", 0.0),
+                    "bbox": defect.get("bbox", [0, 0, 0, 0]),
+                    "location": _determine_location_from_bbox(defect.get("bbox", [0, 0, 0, 0]), frame.shape)
+                }
+                processed_defects.append(defect_with_id)
+            
+            # Process surface defects (empty for fasterrcnn_only)
+            processed_surface_defects = []
+            
+            # Visualization
+            draw_inspection_results(in_path, inspection_results, out_path)
+            
+            # Generate report
+            report_data = {
+                "id": report_id,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "image_id": image_id,
+                "original_image_path": in_path,
+                "processed_image_path": out_path,
+                "detection_mode": detection_mode
+            }
+            
+            # Generate PDF report
+            pdf_report_path = f"app/static/reports/report_{report_id}.pdf"
+            pdf_path = report_generator.create_pdf_report(report_data, processed_defects, pdf_report_path)
+            
+            # Generate JSON report
+            json_report = report_generator.create_json_report(report_data, processed_defects)
+            
+            # Calculate metrics for UI
+            metrics = _calculate_detection_metrics(processed_defects, processed_surface_defects)
+            
+            # Prepare response
+            response = to_inspection_response_schema(image_id=image_id, results=inspection_results, visualization_path=out_path)
+            
+            # Add report information and metrics to response
+            response.update({
+                "report_id": report_id,
+                "report_pdf_url": f"/reports/{os.path.basename(pdf_path)}" if pdf_path else None,
+                "report_json": json_report,
+                "total_defects": len(processed_defects),
+                "total_surface_defects": len(processed_surface_defects),
+                "defects_with_ids": processed_defects,
+                "surface_defects_with_ids": processed_surface_defects,
+                "metrics": metrics
+            })
+            
+            return jsonify(response)
+        else:
+            # Full Vehicle Inspection (FasterRCNN + SAM2)
+            inspection_results = inspector.inspect(in_path)
+            raw_defects = inspection_results.get('defects', [])
+            print(f"[API] Full inspection mode: Found {len(raw_defects)} structural defects, {len(inspection_results.get('surface_defects', []))} surface defects")
+            
+            # Add unique IDs to each defect and prepare for report
+            processed_defects = []
+            for defect in raw_defects:
+                defect_with_id = {
+                    "id": report_generator.generate_unique_defect_id(),
+                    "class": defect.get("class", "Unknown"),
+                    "score": defect.get("score", 0.0),
+                    "bbox": defect.get("bbox", [0, 0, 0, 0]),
+                    "location": _determine_location_from_bbox(defect.get("bbox", [0, 0, 0, 0]), frame.shape)
+                }
+                processed_defects.append(defect_with_id)
+            
+            # Process surface defects
+            processed_surface_defects = []
+            surface_defects = inspection_results.get('surface_defects', [])
+            for defect in surface_defects:
+                surface_defect_with_id = {
+                    "id": report_generator.generate_unique_defect_id(),
+                    "class": defect.get("class", "Unknown"),
+                    "score": defect.get("score", 0.0),
+                    "bbox": defect.get("bbox", [0, 0, 0, 0]),
+                    "location": defect.get("location", "unknown"),
+                    "area": defect.get("area", 0)
+                }
+                processed_surface_defects.append(surface_defect_with_id)
+            
+            # Visualization
+            draw_inspection_results(in_path, inspection_results, out_path)
+            
+            # Generate report
+            report_data = {
+                "id": report_id,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "image_id": image_id,
+                "original_image_path": in_path,
+                "processed_image_path": out_path,
+                "detection_mode": detection_mode
+            }
+            
+            # Generate PDF report
+            pdf_report_path = f"app/static/reports/report_{report_id}.pdf"
+            pdf_path = report_generator.create_pdf_report(report_data, processed_defects, pdf_report_path)
+            
+            # Generate JSON report
+            json_report = report_generator.create_json_report(report_data, processed_defects)
+            
+            # Calculate metrics for UI
+            metrics = _calculate_detection_metrics(processed_defects, processed_surface_defects)
+            
+            # Prepare response
+            response = to_inspection_response_schema(image_id=image_id, results=inspection_results, visualization_path=out_path)
+            
+            # Add report information and metrics to response
+            response.update({
+                "report_id": report_id,
+                "report_pdf_url": f"/reports/{os.path.basename(pdf_path)}" if pdf_path else None,
+                "report_json": json_report,
+                "total_defects": len(processed_defects),
+                "total_surface_defects": len(processed_surface_defects),
+                "metrics": metrics
+            })
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        print(f"[API] Error during upload inference: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Upload inference failed: {str(e)}"}), 500
+
+def _calculate_detection_metrics(defects, surface_defects):
+    """Calculate metrics for UI display"""
+    metrics = {
+        "dent": {"count": 0, "avg_confidence": 0.0, "max_confidence": 0.0},
+        "scratch": {"count": 0, "avg_confidence": 0.0, "max_confidence": 0.0},
+        "surface_irregularity": {"count": 0, "avg_confidence": 0.0, "max_confidence": 0.0}
     }
     
-    # Generate PDF report
-    pdf_report_path = f"app/static/reports/report_{report_id}.pdf"
-    pdf_path = report_generator.create_pdf_report(report_data, processed_defects, pdf_report_path)
+    # Process structural defects
+    dent_scores = []
+    scratch_scores = []
     
-    # Generate JSON report
-    json_report = report_generator.create_json_report(report_data, processed_defects)
+    for defect in defects:
+        class_name = defect.get("class", "").lower()
+        score = defect.get("score", 0.0)
+        
+        if "dent" in class_name:
+            metrics["dent"]["count"] += 1
+            dent_scores.append(score)
+        elif "scratch" in class_name:
+            metrics["scratch"]["count"] += 1
+            scratch_scores.append(score)
     
-    # Prepare response
-    response = to_inspection_response_schema(image_id=image_id, results=inspection_results, visualization_path=out_path)
+    # Calculate averages and maxes for structural defects
+    if dent_scores:
+        metrics["dent"]["avg_confidence"] = sum(dent_scores) / len(dent_scores)
+        metrics["dent"]["max_confidence"] = max(dent_scores)
     
-    # Add report information to response
-    response.update({
-        "report_id": report_id,
-        "report_pdf_url": f"/reports/{os.path.basename(pdf_path)}" if pdf_path else None,
-        "report_json": json_report,
-        "total_defects": len(processed_defects),
-        "defects_with_ids": processed_defects
-    })
+    if scratch_scores:
+        metrics["scratch"]["avg_confidence"] = sum(scratch_scores) / len(scratch_scores)
+        metrics["scratch"]["max_confidence"] = max(scratch_scores)
     
-    return jsonify(response)
+    # Process surface defects
+    surface_scores = []
+    for defect in surface_defects:
+        score = defect.get("score", 0.0)
+        surface_scores.append(score)
+        metrics["surface_irregularity"]["count"] += 1
+    
+    if surface_scores:
+        metrics["surface_irregularity"]["avg_confidence"] = sum(surface_scores) / len(surface_scores)
+        metrics["surface_irregularity"]["max_confidence"] = max(surface_scores)
+    
+    return metrics
 
 def _determine_location_from_bbox(bbox, image_shape):
     """Determine location description from bounding box"""
@@ -312,6 +618,11 @@ def reports(filename):
     file_path = os.path.join(reports_dir, filename)
     print(f"[DEBUG] Report file exists: {os.path.exists(file_path)}")
     return send_from_directory(reports_dir, filename, as_attachment=False)
+
+@app.route("/results", methods=["GET"])
+def results():
+    """Display detection results page"""
+    return render_template("results.html")
 
 @app.teardown_appcontext
 def cleanup_camera(error):
